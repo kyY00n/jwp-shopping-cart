@@ -44,7 +44,6 @@ public class BasicAuthResolver implements HandlerMethodArgumentResolver {
         }
 
         BasicCredentials createdCredential = getBasicCredentials(parameter, webRequest);
-        authService.authenticateUser(createdCredential);
         session.setAttribute("credentials", createdCredential);
         return createdCredential;
     }
