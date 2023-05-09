@@ -210,34 +210,4 @@ public class CartIntegrationTest {
         assertThat(sessionId).isNotNull();
     }
 
-    @Test
-    @DisplayName("쿠키를 보내면 헤더를 보내지 않아도 된다.")
-    void session_success() {
-        //given
-        CartItemCreateRequest cartItemCreateRequest = createCartItemRequestWithProduct();
-        ExtractableResponse<Response> cookieResponse = RestAssured.with()
-                .auth().preemptive().basic(VALID_EMAIL, VALID_PASSWORD)
-                .accept(MediaType.APPLICATION_JSON_VALUE)
-                .contentType(ContentType.JSON)
-                .body(cartItemCreateRequest).post("/user/cart")
-                .then().extract();
-
-        String sessionId = cookieResponse.response().getSessionId();
-
-        //when
-        ExtractableResponse<Response> response = RestAssured
-                .given().log().all()
-                .accept(MediaType.APPLICATION_JSON_VALUE)
-                .contentType(ContentType.JSON)
-                .cookie("JSESSIONID", sessionId)
-                .when().get("/user/cart")
-                .then().log().all().extract();
-
-        //then
-        assertAll(
-                () -> assertThat(response.statusCode()).isEqualTo(200),
-                () -> assertThat(response.body().jsonPath().getBoolean("success")).isTrue()
-        );
-    }
-
 }

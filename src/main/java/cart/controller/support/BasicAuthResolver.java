@@ -5,6 +5,7 @@ import static org.apache.tomcat.util.codec.binary.Base64.decodeBase64;
 import cart.dto.BasicCredentials;
 import cart.service.AuthService;
 import java.util.Objects;
+import java.util.Optional;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import org.springframework.core.MethodParameter;
@@ -37,29 +38,34 @@ public class BasicAuthResolver implements HandlerMethodArgumentResolver {
     public BasicCredentials resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
                                             NativeWebRequest webRequest, WebDataBinderFactory binderFactory)
             throws Exception {
+        String authorizationHeader = getAuthorizationHeader(parameter, webRequest);
         HttpSession session = getHttpSession(webRequest);
-        BasicCredentials credentials = (BasicCredentials) session.getAttribute("credentials");
-        if (credentials != null) {
-            return credentials;
-        }
 
-        BasicCredentials createdCredential = getBasicCredentials(parameter, webRequest);
-        session.setAttribute("credentials", createdCredential);
-        return createdCredential;
+        return Optional.ofNullable((BasicCredentials) session.getAttribute(authorizationHeader))
+                .orElseGet(() -> {
+                    BasicCredentials createdCredential = getBasicCredentials(authorizationHeader);
+                    session.setAttribute(authorizationHeader, createdCredential);
+                    return createdCredential;
+                });
     }
 
-    private HttpSession getHttpSession(NativeWebRequest webRequest) {
-        HttpServletRequest httpServletRequest = Objects.requireNonNull(webRequest.getNativeRequest(HttpServletRequest.class));
-        return httpServletRequest.getSession();
-    }
-
-    private BasicCredentials getBasicCredentials(MethodParameter parameter, NativeWebRequest webRequest)
+    private String getAuthorizationHeader(MethodParameter parameter, NativeWebRequest webRequest)
             throws MissingRequestHeaderException {
         String authorizationHeader = webRequest.getHeader(AUTH_HEADER_NAME);
         if (authorizationHeader == null) {
             throw new MissingRequestHeaderException(AUTH_HEADER_NAME, parameter);
         }
+        return authorizationHeader;
+    }
 
+    private HttpSession getHttpSession(NativeWebRequest webRequest) {
+        HttpServletRequest httpServletRequest = Objects.requireNonNull(
+                webRequest.getNativeRequest(HttpServletRequest.class));
+        HttpSession session = httpServletRequest.getSession();
+        return session;
+    }
+
+    private BasicCredentials getBasicCredentials(String authorizationHeader) {
         BasicCredentials credentials = extractBasicCredentials(authorizationHeader);
         authService.authenticateUser(credentials);
         return credentials;
